@@ -361,7 +361,9 @@
 <script>
 // Token del bot es público (bot compartido). Solo el Chat ID identifica a cada usuario.
 const TG_BOT_TOKEN = '8643872959:AAHr6htq14LsHENKuIpOwTpZLG-caNpOFTA';
+const RAILWAY_URL = 'https://trading-bot-server-production-e77d.up.railway.app';
 let TG_CHAT_ID = localStorage.getItem('tg_chat_id') || '';
+let ultimoEstado = null;
 
 const POLL_INTERVAL = 30000;
 let pollTimer = null;
@@ -400,6 +402,7 @@ async function guardarConfig() {
 function olvidarConfig() {
   if (!confirm('¿Eliminar tu Chat ID guardado?')) return;
   localStorage.removeItem('tg_chat_id');
+  localStorage.removeItem('tg_offset');
   TG_CHAT_ID = '';
   clearTimeout(pollTimer);
   mostrarConfigScreen();
@@ -415,27 +418,18 @@ function showTab(name) {
   document.getElementById('panel-' + name).classList.add('active');
 }
 
-// ── Fetch datos desde Telegram ───────────────────────────────
+// ── Fetch datos desde el servidor Railway ────────────────────
 async function fetchBotData() {
   try {
-    const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/getUpdates?limit=100`;
-    const r = await fetch(url);
+    const r = await fetch(`${RAILWAY_URL}/estado?chat_id=${encodeURIComponent(TG_CHAT_ID)}`);
+    if (!r.ok) { showOffline('Servidor no responde (' + r.status + ')'); return; }
     const d = await r.json();
-    if (!d.ok) { showOffline('Error de API Telegram'); return; }
-    let estado = null;
-    for (const upd of (d.result || []).reverse()) {
-      const msg = upd.message || {};
-      const msgChatId = String(msg.chat?.id || '');
-      const txt = msg.text || '';
-      // Solo leer mensajes de ESTE usuario
-      if (msgChatId !== TG_CHAT_ID) continue;
-      if (txt.startsWith('BOT_ESTADO_JSON:')) {
-        try { estado = JSON.parse(txt.replace('BOT_ESTADO_JSON:', '')); break; }
-        catch(e) {}
-      }
+    if (!d.online || !d.estado) {
+      showOffline('Bot offline. Verificá que el .exe esté corriendo.');
+      return;
     }
-    if (estado) renderEstado(estado);
-    else showOffline('Bot no ha enviado estado aún. Esperá hasta 30 segundos.');
+    ultimoEstado = d.estado;
+    renderEstado(ultimoEstado);
   } catch(e) {
     showOffline('Error de red: ' + e.message);
   }
