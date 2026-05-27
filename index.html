@@ -517,11 +517,16 @@ function showOffline(reason) {
 async function confirmarStop() {
   if (!TG_CHAT_ID) { alert('Chat ID no configurado'); return; }
   if (!confirm('¿Detener el bot completamente?')) return;
-  await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({chat_id: TG_CHAT_ID, text: '/stopall'})
-  });
-  alert('Señal de STOP enviada al bot.');
+  try {
+    const r = await fetch(`${RAILWAY_URL}/comando`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: TG_CHAT_ID, comando: '/stopall'})
+    });
+    if (!r.ok) throw new Error('Servidor respondió ' + r.status);
+    alert('Señal de STOP enviada. Puede tardar unos segundos.');
+  } catch(e) {
+    alert('Error enviando STOP: ' + e.message);
+  }
 }
 
 // ── Polling ──────────────────────────────────────────────────
