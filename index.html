@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BOT TRADING V15.6</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #13131f;
+    --card2: #1a1a2e;
+    --accent: #00d4aa;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --border: #1e293b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a0533 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .bot-title { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .bot-version { font-size: 11px; color: var(--muted); }
+  .status-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .stat-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── BALANCE CARD ── */
+  .balance-card {
+    margin: 0 16px 12px;
+    background: linear-gradient(135deg, var(--card2) 0%, #0f1a2e 100%);
+    border: 1px solid #2d3748;
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .balance-card::before {
+    content: '';
+    position: absolute; top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(0,212,170,.15) 0%, transparent 70%);
+  }
+  .balance-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .balance-value { font-size: 32px; font-weight: 800; color: var(--accent); margin: 6px 0 2px; }
+  .balance-mode { font-size: 11px; color: var(--muted); }
+  .pnl-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3);
+    color: var(--green); border-radius: 20px;
+    padding: 3px 10px; font-size: 12px; font-weight: 600; margin-top: 8px;
+  }
+  .pnl-badge.neg { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: var(--red); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    margin-bottom: 0;
+    gap: 0;
+  }
+  .tab {
+    padding: 10px 16px; font-size: 13px; font-weight: 600;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .2s; white-space: nowrap;
+    background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── CONTENT PANELS ── */
+  .panel { display: none; padding: 12px 16px; flex: 1; }
+  .panel.active { display: block; }
+
+  /* ── COIN LIST ── */
+  .section-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 8px; margin-top: 4px;
+  }
+  .coin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .coin-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .coin-info { flex: 1; min-width: 0; }
+  .coin-name { font-size: 14px; font-weight: 700; }
+  .coin-regime { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .coin-right { text-align: right; flex-shrink: 0; }
+  .coin-price { font-size: 13px; font-weight: 600; }
+  .coin-pnl { font-size: 12px; margin-top: 2px; }
+  .pos-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  }
+  .pos-badge.long { background: rgba(34,197,94,.2); color: var(--green); }
+  .pos-badge.short { background: rgba(239,68,68,.2); color: var(--red); }
+  .pos-badge.none { background: rgba(100,116,139,.15); color: var(--muted); }
+
+  /* ── LOG PANEL ── */
+  .log-container {
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    height: calc(100vh - 320px);
+    overflow-y: auto;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+  }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+  .log-ts { color: #475569; margin-right: 6px; }
+  .log-white { color: #e2e8f0; }
+  .log-green { color: #4ade80; }
+  .log-red { color: #f87171; }
+  .log-cyan { color: #22d3ee; }
+  .log-yellow { color: #fbbf24; }
+  .log-orange { color: #fb923c; }
+
+  /* ── TRADES PANEL ── */
+  .trade-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .trade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .trade-coin { font-weight: 700; font-size: 13px; }
+  .trade-pnl { font-weight: 700; }
+  .trade-details { color: var(--muted); font-size: 11px; }
+  .trade-motivo { margin-top: 4px; color: #7c3aed; font-size: 10px; }
+
+  /* ── DISCONNECTED ── */
+  .disconnected {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,10,15,.97);
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+  }
+  .disconnected.show { display: flex; }
+  .disc-icon { font-size: 60px; margin-bottom: 16px; }
+  .disc-title { font-size: 22px; font-weight: 800; color: var(--red); margin-bottom: 8px; }
+  .disc-sub { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .disc-time { color: var(--yellow); font-size: 12px; margin-top: 16px; }
+
+  /* ── STOP BUTTON ── */
+  .stop-btn {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    background: linear-gradient(135deg, #7f1d1d, #dc2626);
+    color: white; border: none; border-radius: 50%;
+    width: 56px; height: 56px;
+    font-size: 22px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(220,38,38,.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    transition: transform .15s;
+  }
+  .stop-btn:active { transform: scale(.92); }
+
+  /* ── WINRATE BAR ── */
+  .wr-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+  .wr-fill { height: 100%; border-radius: 2px; background: var(--green); transition: width .5s; }
+
+  .empty-msg { color: var(--muted); text-align: center; padding: 32px 0; font-size: 13px; }
+
+  .refresh-info { text-align: center; font-size: 10px; color: var(--muted); padding: 8px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="bot-title">BOT TRADING V15.6</div>
+      <div class="bot-version">by Matias</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="status-dot">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Conectado</span>
+      </div>
+      <span onclick="mostrarConfigScreen()" style="font-size:16px;cursor:pointer;opacity:.5" title="Cambiar Chat ID">⚙️</span>
+    </div>
+  </div>
+</div>
+
+<!-- BALANCE CARD -->
+<div class="balance-card">
+  <div class="balance-label">Saldo disponible</div>
+  <div class="balance-value" id="balanceVal">$0.00</div>
+  <div class="balance-mode" id="balanceMode">DEMO</div>
+  <div id="pnlBadge" class="pnl-badge">PNL sesión: $0.00</div>
+</div>
+
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Win Rate</div>
+    <div class="stat-value accent" id="winrateVal">0%</div>
+    <div class="wr-bar"><div class="wr-fill" id="winrateFill" style="width:0%"></div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Wins</div>
+    <div class="stat-value green" id="winsVal">0</div>
+    <div class="stat-sub">operaciones ✅</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Losses</div>
+    <div class="stat-value red" id="lossesVal">0</div>
+    <div class="stat-sub">operaciones ❌</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('monedas')">Monedas</button>
+  <button class="tab" onclick="showTab('logs')">Logs</button>
+  <button class="tab" onclick="showTab('trades')">Historial</button>
+</div>
+
+<!-- PANEL MONEDAS -->
+<div class="panel active" id="panel-monedas">
+  <div class="section-title">Activas</div>
+  <div id="coinListActive"></div>
+  <div class="section-title" style="margin-top:16px">Inactivas / Sin posición</div>
+  <div id="coinListInactive"></div>
+</div>
+
+<!-- PANEL LOGS -->
+<div class="panel" id="panel-logs">
+  <div class="log-container" id="logContainer"></div>
+</div>
+
+<!-- PANEL TRADES -->
+<div class="panel" id="panel-trades">
+  <div id="tradeList"></div>
+</div>
+
+<!-- CONFIGURACIÓN (pantalla de login) -->
+<div class="disconnected" id="configScreen" style="background:rgba(10,10,15,.99);z-index:1000;">
+  <div style="width:100%;max-width:360px">
+    <div style="font-size:48px;text-align:center;margin-bottom:12px">📱</div>
+    <div style="font-size:20px;font-weight:800;color:#00d4aa;text-align:center;margin-bottom:4px">BOT TRADING V15.6</div>
+    <div style="color:#64748b;font-size:13px;text-align:center;margin-bottom:20px">Ingresá tu Chat ID para ver tu bot</div>
+
+    <div style="background:#13131f;border:1px solid #1e293b;border-radius:12px;padding:14px;margin-bottom:16px;font-size:12px;color:#94a3b8;line-height:1.7">
+      <b style="color:#00d4aa">Paso 1:</b> Abrí Telegram y buscá<br>
+      <a href="https://t.me/Tradparaguaybot" target="_blank" style="color:#00d4aa;font-weight:700;text-decoration:none">@Tradparaguaybot</a><br>
+      <b style="color:#00d4aa">Paso 2:</b> Escribí <code style="background:#0a0a0f;padding:2px 6px;border-radius:4px">/start</code><br>
+      <b style="color:#00d4aa">Paso 3:</b> El bot te envía tu Chat ID<br>
+      <b style="color:#00d4aa">Paso 4:</b> Pegá ese ID acá abajo ↓
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:#64748b;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Tu Chat ID de Telegram</div>
+      <input id="cfgChatId" type="text" placeholder="Ej: 123456789"
+        style="width:100%;background:#1a1a2e;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;color:#e2e8f0;font-size:14px;outline:none;">
+    </div>
+    <div style="font-size:11px;color:#475569;margin-bottom:16px;text-align:center">
+      💡 También podés obtener tu Chat ID con @userinfobot
+    </div>
+
+    <div id="cfgStatus" style="text-align:center;min-height:20px;font-size:13px;margin-bottom:12px"></div>
+
+    <button onclick="guardarConfig()"
+      style="width:100%;background:linear-gradient(135deg,#00b894,#00d4aa);color:#0a0a0f;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.5px">
+      CONECTAR
+    </button>
+    <div style="text-align:center;margin-top:12px">
+      <span onclick="olvidarConfig()" style="color:#475569;font-size:11px;cursor:pointer;text-decoration:underline">Olvidar Chat ID guardado</span>
+    </div>
+  </div>
+</div>
+
+<!-- DESCONECTADO -->
+<div class="disconnected" id="discScreen">
+  <div class="disc-icon">🔌</div>
+  <div class="disc-title">Bot Desconectado</div>
+  <div class="disc-sub">El bot no está enviando datos.<br>Verificá que el programa esté corriendo en la PC.</div>
+  <div class="disc-time" id="discTime"></div>
+</div>
+
+<!-- BOTÓN STOP -->
+<button class="stop-btn" onclick="confirmarStop()" title="Detener bot">⏹</button>
+
+<div class="refresh-info" id="refreshInfo">Actualizando...</div>
+
+<script>
+// Token del bot es público (bot compartido). Solo el Chat ID identifica a cada usuario.
+const TG_BOT_TOKEN = '8643872959:AAHr6htq14LsHENKuIpOwTpZLG-caNpOFTA';
+let TG_CHAT_ID = localStorage.getItem('tg_chat_id') || '';
+
+const POLL_INTERVAL = 30000;
+let pollTimer = null;
+let currentTab = 'monedas';
+
+// ── Pantalla de configuración ────────────────────────────────
+function mostrarConfigScreen() {
+  document.getElementById('configScreen').classList.add('show');
+}
+function ocultarConfigScreen() {
+  document.getElementById('configScreen').classList.remove('show');
+}
+
+async function guardarConfig() {
+  const cid = document.getElementById('cfgChatId').value.trim();
+  const lbl = document.getElementById('cfgStatus');
+  if (!cid) { lbl.textContent = '⚠️ Ingresá tu Chat ID'; lbl.style.color='#f59e0b'; return; }
+
+  lbl.textContent = '🔄 Verificando...'; lbl.style.color='#94a3b8';
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: cid, text: '✅ <b>Mini App conectada!</b>\n\nYa podés ver el estado de tu bot aquí.', parse_mode: 'HTML'})
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.description || 'Chat ID inválido — asegurate de haber enviado /start al bot primero');
+    TG_CHAT_ID = cid;
+    localStorage.setItem('tg_chat_id', cid);
+    lbl.textContent = '✅ Conectado! Cargando datos...'; lbl.style.color='#22c55e';
+    setTimeout(() => { ocultarConfigScreen(); iniciarPolling(); }, 1200);
+  } catch(e) {
+    lbl.textContent = '❌ ' + e.message; lbl.style.color='#ef4444';
+  }
+}
+
+function olvidarConfig() {
+  if (!confirm('¿Eliminar tu Chat ID guardado?')) return;
+  localStorage.removeItem('tg_chat_id');
+  TG_CHAT_ID = '';
+  clearTimeout(pollTimer);
+  mostrarConfigScreen();
+}
+
+// ── Tabs ─────────────────────────────────────────────────────
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['monedas','logs','trades'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── Fetch datos desde Telegram ───────────────────────────────
+async function fetchBotData() {
+  try {
+    const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/getUpdates?limit=100`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (!d.ok) { showOffline('Error de API Telegram'); return; }
+    let estado = null;
+    for (const upd of (d.result || []).reverse()) {
+      const msg = upd.message || {};
+      const msgChatId = String(msg.chat?.id || '');
+      const txt = msg.text || '';
+      // Solo leer mensajes de ESTE usuario
+      if (msgChatId !== TG_CHAT_ID) continue;
+      if (txt.startsWith('BOT_ESTADO_JSON:')) {
+        try { estado = JSON.parse(txt.replace('BOT_ESTADO_JSON:', '')); break; }
+        catch(e) {}
+      }
+    }
+    if (estado) renderEstado(estado);
+    else showOffline('Bot no ha enviado estado aún. Esperá hasta 30 segundos.');
+  } catch(e) {
+    showOffline('Error de red: ' + e.message);
+  }
+}
+
+// ── Renderizar estado ────────────────────────────────────────
+function renderEstado(est) {
+  const now = Date.now() / 1000;
+  if (now - est.ts > 120) {
+    showOffline('Último dato: ' + new Date(est.ts * 1000).toLocaleTimeString());
+    return;
+  }
+  document.getElementById('discScreen').classList.remove('show');
+
+  document.getElementById('balanceVal').textContent  = '$' + (est.saldo || 0).toFixed(2);
+  document.getElementById('balanceMode').textContent = est.modo || 'DEMO';
+
+  const pnl = est.pnl_sesion || 0;
+  const badge = document.getElementById('pnlBadge');
+  badge.textContent = (pnl >= 0 ? '▲ +' : '▼ ') + '$' + pnl.toFixed(2) + ' sesión';
+  badge.className = 'pnl-badge' + (pnl < 0 ? ' neg' : '');
+
+  const wins = est.wins || 0, losses = est.losses || 0, total = wins + losses;
+  const wr = total > 0 ? Math.round(wins / total * 100) : 0;
+  document.getElementById('winrateVal').textContent = wr + '%';
+  document.getElementById('winrateFill').style.width = wr + '%';
+  document.getElementById('winsVal').textContent   = wins;
+  document.getElementById('lossesVal').textContent = losses;
+
+  renderMonedas(est.monedas || {});
+  renderLogs(est.logs || []);
+
+  document.getElementById('statusDot').className = 'dot';
+  document.getElementById('statusText').textContent = 'Actualizado ' + new Date(est.ts * 1000).toLocaleTimeString();
+  document.getElementById('refreshInfo').textContent = 'Próxima actualización en 30s';
+}
+
+function renderMonedas(monedas) {
+  const activos = document.getElementById('coinListActive');
+  const inactivos = document.getElementById('coinListInactive');
+  activos.innerHTML = ''; inactivos.innerHTML = '';
+  const entries = Object.entries(monedas);
+  if (!entries.length) { activos.innerHTML = '<div class="empty-msg">Sin monedas activas</div>'; return; }
+  entries.forEach(([coin, data]) => {
+    const pos = data.posicion, precio = data.precio || 0, pnl = data.pnl || 0;
+    const symbol = coin.replace('/USDT','').replace('USDT','');
+    const pnlColor = pnl > 0 ? 'color:#4ade80' : pnl < 0 ? 'color:#f87171' : 'color:#64748b';
+    const badgeClass = pos === 'LONG' ? 'long' : pos === 'SHORT' ? 'short' : 'none';
+    const card = `<div class="coin-card">
+      <div class="coin-icon">${symbol.slice(0,3)}</div>
+      <div class="coin-info">
+        <div class="coin-name">${coin}</div>
+        <div class="coin-regime">${data.regimen||''} &nbsp;<span class="pos-badge ${badgeClass}">${pos||'Sin pos.'}</span></div>
+      </div>
+      <div class="coin-right">
+        <div class="coin-price">$${precio < 10 ? precio.toFixed(4) : precio.toFixed(2)}</div>
+        <div class="coin-pnl" style="${pnlColor}">${pnl>0?'+':''}$${pnl.toFixed(2)}</div>
+      </div></div>`;
+    (pos ? activos : inactivos).insertAdjacentHTML('beforeend', card);
+  });
+  if (!activos.innerHTML)   activos.innerHTML   = '<div class="empty-msg">Sin posiciones abiertas</div>';
+  if (!inactivos.innerHTML) inactivos.innerHTML = '<div class="empty-msg">—</div>';
+}
+
+function renderLogs(logs) {
+  const c = document.getElementById('logContainer');
+  const atBottom = c.scrollHeight - c.scrollTop <= c.clientHeight + 30;
+  c.innerHTML = '';
+  logs.forEach(log => {
+    c.insertAdjacentHTML('beforeend',
+      `<div class="log-entry"><span class="log-ts">[${log.t}]</span><span class="log-${(log.color||'white').toLowerCase()}">${escHtml(log.msg)}</span></div>`);
+  });
+  if (atBottom) c.scrollTop = c.scrollHeight;
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showOffline(reason) {
+  document.getElementById('discScreen').classList.add('show');
+  document.getElementById('discTime').textContent = reason;
+  document.getElementById('statusDot').className = 'dot offline';
+  document.getElementById('statusText').textContent = 'Desconectado';
+}
+
+async function confirmarStop() {
+  if (!TG_CHAT_ID) { alert('Chat ID no configurado'); return; }
+  if (!confirm('¿Detener el bot completamente?')) return;
+  await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({chat_id: TG_CHAT_ID, text: '/stopall'})
+  });
+  alert('Señal de STOP enviada al bot.');
+}
+
+// ── Polling ──────────────────────────────────────────────────
+async function poll() {
+  await fetchBotData();
+  pollTimer = setTimeout(poll, POLL_INTERVAL);
+}
+
+function iniciarPolling() {
+  clearTimeout(pollTimer);
+  poll();
+}
+
+// ── Inicio ───────────────────────────────────────────────────
+if (TG_CHAT_ID) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('cfgChatId').value = TG_CHAT_ID;
+  });
+  iniciarPolling();
+} else {
+  mostrarConfigScreen();
+}
+</script>
+</body>
+</html>
